@@ -54,28 +54,6 @@ static uint8_t *msg_ptr;
 // linked list for command table
 static cmd_t *cmd_tbl_list, *cmd_tbl;
 
-// text strings for command prompt (stored in flash)
-const char cmd_banner[] PROGMEM = "*************** CMD *******************";
-const char cmd_prompt[] PROGMEM = "CMD >> ";
-const char cmd_unrecog[] PROGMEM = "CMD: Command not recognized.";
-
-/**************************************************************************/
-/*!
-    Generate the main command prompt
-*/
-/**************************************************************************/
-void cmd_display()
-{
-    char buf[50];
-
-    Serial.println();
-
-    strcpy_P(buf, cmd_banner);
-    Serial.println(buf);
-
-    strcpy_P(buf, cmd_prompt);
-    Serial.print(buf);
-}
 
 /**************************************************************************/
 /*!
@@ -111,16 +89,9 @@ void cmd_parse(char *cmd)
         if (!strcmp(argv[0], cmd_entry->cmd))
         {
             cmd_entry->func(argc, argv);
-            cmd_display();
             return;
         }
     }
-
-    // command not recognized. print message and re-generate prompt.
-    strcpy_P(buf, cmd_unrecog);
-    Serial.println(buf);
-
-    cmd_display();
 }
 
 /**************************************************************************/
@@ -137,17 +108,16 @@ void cmd_handler()
     switch (c)
     {
     case '\r':
+    case '\n':
         // terminate the msg and reset the msg ptr. then send
         // it to the handler for processing.
         *msg_ptr = '\0';
-        Serial.print("\r\n");
         cmd_parse((char *)msg);
         msg_ptr = msg;
         break;
     
     case '\b':
         // backspace 
-        Serial.print(c);
         if (msg_ptr > msg)
         {
             msg_ptr--;
@@ -156,7 +126,6 @@ void cmd_handler()
     
     default:
         // normal character entered. add it to the buffer
-        Serial.print(c);
         *msg_ptr++ = c;
         break;
     }
