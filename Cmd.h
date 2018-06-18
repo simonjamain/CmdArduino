@@ -44,6 +44,9 @@
 #define MAX_MSG_SIZE    60
 #include <stdint.h>
 
+#define USE_SOFTWARE_SERIAL
+//#undef USE_SOFTWARE_SERIAL
+
 // command line structure
 typedef struct _cmd_t
 {
@@ -52,9 +55,13 @@ typedef struct _cmd_t
     struct _cmd_t *next;
 } cmd_t;
 
+#ifdef USE_SOFTWARE_SERIAL
+#include <SoftwareSerial.h>
+void cmdInit(uint32_t speed, SoftwareSerial *softwareSerial);
+#else
 void cmdInit(uint32_t speed);
+#endif
 void cmdPoll();
 void cmdAdd(char *name, void (*func)(int argc, char **argv));
-uint32_t cmdStr2Num(char *str, uint8_t base);
 
 #endif //CMD_H

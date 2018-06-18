@@ -44,7 +44,6 @@
 #else
 #include <WProgram.h>
 #endif
-#include "HardwareSerial.h"
 #include "Cmd.h"
 
 // command line message buffer and pointer
@@ -54,6 +53,12 @@ static uint8_t *msg_ptr;
 // linked list for command table
 static cmd_t *cmd_tbl_list, *cmd_tbl;
 
+#ifdef USE_SOFTWARE_SERIAL
+#include <SoftwareSerial.h>
+static SoftwareSerial *softSerial;
+#else
+#include "HardwareSerial.h"
+#endif
 
 /**************************************************************************/
 /*!
@@ -78,7 +83,7 @@ void cmd_parse(char *cmd)
     {
         argv[++i] = strtok(NULL, " ");
     } while ((i < 30) && (argv[i] != NULL));
-    
+
     // save off the number of arguments for the particular command.
     argc = i;
 
@@ -103,8 +108,12 @@ void cmd_parse(char *cmd)
 /**************************************************************************/
 void cmd_handler()
 {
-    char c = Serial.read();
 
+#ifdef USE_SOFTWARE_SERIAL
+    char c = softSerial->read();
+#else
+    char c = Serial.read();
+#endif
     switch (c)
     {
     case '\r':
@@ -115,15 +124,15 @@ void cmd_handler()
         cmd_parse((char *)msg);
         msg_ptr = msg;
         break;
-    
+
     case '\b':
-        // backspace 
+        // backspace
         if (msg_ptr > msg)
         {
             msg_ptr--;
         }
         break;
-    
+
     default:
         // normal character entered. add it to the buffer
         *msg_ptr++ = c;
@@ -139,8 +148,13 @@ void cmd_handler()
 /**************************************************************************/
 void cmdPoll()
 {
+#ifdef USE_SOFTWARE_SERIAL
+    while (softSerial->available())
+#else
     while (Serial.available())
+#endif
     {
+        
         cmd_handler();
     }
 }
@@ -151,16 +165,25 @@ void cmdPoll()
     and initializes things. 
 */
 /**************************************************************************/
+
+#ifdef USE_SOFTWARE_SERIAL
+void cmdInit(uint32_t speed, SoftwareSerial *softwareSerial)
+#else
 void cmdInit(uint32_t speed)
+#endif
 {
     // init the msg ptr
     msg_ptr = msg;
 
     // init the command table
-    cmd_tbl_list = NULL;
 
-    // set the serial speed
+    cmd_tbl_list = NULL;
+#ifdef USE_SOFTWARE_SERIAL
+    softSerial = softwareSerial;
+    softSerial->begin(speed);
+#else
     Serial.begin(speed);
+#endif
 }
 
 /**************************************************************************/
@@ -175,7 +198,7 @@ void cmdAdd(char *name, void (*func)(int argc, char **argv))
     cmd_tbl = (cmd_t *)malloc(sizeof(cmd_t));
 
     // alloc memory for command name
-    char *cmd_name = (char *)malloc(strlen(name)+1);
+    char *cmd_name = (char *)malloc(strlen(name) + 1);
 
     // copy command name
     strcpy(cmd_name, name);
@@ -190,13 +213,3 @@ void cmdAdd(char *name, void (*func)(int argc, char **argv))
     cmd_tbl_list = cmd_tbl;
 }
 
-/**************************************************************************/
-/*!
-    Convert a string to a number. The base must be specified, ie: "32" is a
-    different value in base 10 (decimal) and base 16 (hexadecimal).
-*/
-/**************************************************************************/
-uint32_t cmdStr2Num(char *str, uint8_t base)
-{
-    return strtol(str, NULL, base);
-}
